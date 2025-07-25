@@ -6,7 +6,10 @@ from tkinter import simpledialog, messagebox
 import ctypes
 from ctypes import wintypes
 import keyboard  # Biblioteca mais confiável para capturar teclas
+from tkinter import filedialog  # Adicione esta importação
+from PIL import Image, ImageTk  # Adicione esta importação
 
+import os  # Para manipulação de caminhos
 
 # Configurações do Windows API para controle do mouse e teclado
 user32 = ctypes.windll.user32
@@ -32,7 +35,7 @@ class MSG(ctypes.Structure):
 
 # Classe para representar um perfil de configuração
 class Perfil:
-    def __init__(self, nome, intensidade):
+    def __init__(self, nome, intensidade, icones=None):
         self.nome = nome
         self.intensidade = intensidade
         self.ativo = False  # Estado do perfil (ativo/inativo)
@@ -40,6 +43,9 @@ class Perfil:
         self.label_intensidade = None  # Label para mostrar a intensidade
         self.label_nome = None  # Label para mostrar o nome
         self.frame = None  # Frame que contém este perfil
+        self.icones = icones if icones else []  # Lista de caminhos de ícones
+        self.icon_images = []  # Lista de PhotoImage para manter referência
+        self.icon_labels = [] # Lista para armazenar os labels dos ícones
 
 # Variáveis globais
 holding = False
@@ -275,6 +281,10 @@ def adicionar_perfil_na_interface(perfil, frame):
                            command=selecionar_perfil, bg="#f0f0f0")
     check.pack(side=tk.LEFT)
     
+    # Ícones
+    carregar_icones(perfil, perfil.frame)
+    # Botão para adicionar ícone
+    
     perfil.label_nome = tk.Label(perfil.frame, text=perfil.nome, bg="#f0f0f0", width=15, anchor="w")
     perfil.label_nome.pack(side=tk.LEFT, padx=5)
     
@@ -287,6 +297,36 @@ def adicionar_perfil_na_interface(perfil, frame):
                            command=lambda p=perfil: editar_perfil(p),
                            bg="#e0e0e0", width=8)
     editar_btn.pack(side=tk.RIGHT, padx=5)
+
+# Função para carregar e redimensionar ícones
+def carregar_icones(perfil, frame):
+    # Limpa ícones antigos
+    for img_label in getattr(perfil, "icon_labels", []):
+        img_label.destroy()
+    perfil.icon_images = []
+    perfil.icon_labels = []
+    for icon_path in perfil.icones:
+        try:
+            img = Image.open(icon_path)
+            img = img.resize((32, 32), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            perfil.icon_images.append(photo)
+            img_label = tk.Label(frame, image=photo, bg="#f0f0f0")
+            img_label.pack(side=tk.LEFT, padx=2)
+            perfil.icon_labels.append(img_label)
+        except Exception as e:
+            print(f"Erro ao carregar ícone {icon_path}: {e}")
+
+# Função para adicionar ícone ao perfil
+def adicionar_icone_ao_perfil(perfil, frame):
+    icon_paths = filedialog.askopenfilenames(
+        title="Selecione um ou mais ícones",
+        filetypes=[("Imagens PNG", "*.png")],
+        initialdir=os.path.join(os.getcwd(), "icons")
+    )
+    if icon_paths:
+        perfil.icones.extend(icon_paths)
+        carregar_icones(perfil, frame)
 
 # Interface com lista de perfis
 def show_ui():
@@ -372,14 +412,23 @@ def show_ui():
     
     # Criar perfis padrão
     perfis_padrao = [
-        ("tt it", 30),
-        ("jag,ward,p90", 16),
-        ("ash", 18),
+        ("1", 30, [
+            os.path.join("icons", "twitch.png"), 
+            os.path.join("icons", "ela.png")
+            
+        ]),
+        ("2", 16, [
+            os.path.join("icons", "jager.png"),
+            os.path.join("icons", "doc.png"),
+            os.path.join("icons", "warden.png"),
+            os.path.join("icons", "iq.png"),
+        ]),
+        ("3", 18, [os.path.join("icons", "ash.png")]),
     ]
     
     # Adicionar perfis padrão
-    for nome, intensidade in perfis_padrao:
-        perfil = Perfil(nome, intensidade)
+    for nome, intensidade, icones in perfis_padrao:
+        perfil = Perfil(nome, intensidade, icones=[os.path.join(os.getcwd(), icon) if not os.path.isabs(icon) else icon for icon in icones])
         profiles.append(perfil)
         adicionar_perfil_na_interface(perfil, profiles_frame)
     
